@@ -1,0 +1,130 @@
+# Q3 roadmap commitment and Thanksgiving plans
+Date: 2026-04-21
+
+[RECORDING START — 09:04 AM — Tuesday, October 8, 2024]
+
+Mitra: —okay I think I'm the last one in, sorry, my other call ran over
+
+Dev: No worries, we just started. Priya was just saying—
+
+Priya: Yeah so I was saying the staging environment is still down from last night, Kenji put in a ticket but we haven't heard back from infra yet
+
+Mitra: Okay, is that blocking you or can you work around it for now
+
+Priya: I mean it's annoying but I can keep going on the auth stuff locally, so not fully blocked
+
+Mitra: Okay good. Kenji, you wanna give yours?
+
+Kenji: Yeah so, um, I finished the first pass on the API refactor, there's still a couple edge cases I need to handle but I think it's like, mostly there. Oh and I filed that infra ticket, like Priya said. Uh, that's pretty much it
+
+Mitra: Nice, good progress on the refactor. Dev?
+
+Dev: So I'm still in review hell basically, I've got three PRs out and nobody's looked at them since Thursday, so if anyone has like twenty minutes today that would be great
+
+Priya: I can look at the smaller one, I saw it come through
+
+Dev: Oh that'd be amazing, thank you
+
+Mitra: Yeah let's try to clear that backlog, I'll take a look at one of them this afternoon. Okay so for me — I'm mostly in planning land today, I need to get the Q3 roadmap draft finished up and over to the product team
+
+Kenji: Is that the one Maya's been asking about?
+
+Mitra: Yes, exactly, she's been, she's sent me like three Slack messages at this point which, fair, I said I'd have it to her sooner so — my goal is to have it done and sent by end of day Friday
+
+Dev: Do you need anything from us for that or—
+
+Mitra: I might ping you individually if I have questions about estimates but probably not until Thursday. Okay anything else blocking anyone? Any fires I should know about?
+
+Priya: I don't think so
+
+Kenji: Nothing from me
+
+Dev: I mean the PRs but that's not like, a fire
+
+Mitra: Okay, good. Alright let's keep it moving, good standup everyone
+
+Kenji: Thanks
+
+Priya: Bye
+
+[BACKGROUND: notification sounds, chair movement]
+
+[GAP IN RECORDING — 6 hours, 12 minutes]
+
+[RECORDING RESUME — 03:16 PM — Tuesday, October 8, 2024]
+
+[BACKGROUND: traffic noise, wind, outdoor ambience — walking]
+
+[PHONE RINGING]
+
+Mitra: Hey Mom
+
+Mitra's Mom: Hi azizam, did I catch you at a bad time? You sound like you're outside
+
+Mitra: No no, I'm just walking back from grabbing lunch, I went to that sandwich place on Clement, I'm like two blocks from the office
+
+Mitra's Mom: Oh good, I won't keep you long. How are you, are you eating enough?
+
+Mitra: Yes Mom, I literally just ate
+
+Mitra's Mom: Okay okay. So I wanted to ask you about Thanksgiving because Sarah has been calling me about it
+
+Mitra: Oh god, already?
+
+Mitra's Mom: It's October, Mitra, it's not that early
+
+Mitra: It's— okay fine, what is she asking
+
+Mitra's Mom: She wants to know if we're doing it at your uncle's again or if someone else is hosting this year because apparently Hamid said something to her about not wanting to do it two years in a row
+
+Mitra: I mean that's fair, their place is small
+
+Mitra's Mom: That's what I said. So she's wondering if maybe you or— I don't know, she had some ideas
+
+Mitra: Okay what are her ideas
+
+Mitra's Mom: I don't know exactly, she wants to talk to you about it, she said she tried to text you
+
+Mitra: She texted my old number, I think. I never— I don't think I gave her the new one
+
+Mitra's Mom: Ah, okay. Well she's going to keep asking me and I don't have answers so
+
+Mitra: Okay okay, I'll call her. I'll call her this weekend, like Saturday or Sunday
+
+Mitra's Mom: Saturday is better because Sunday she has her— I don't know, she does that walking group on Sunday mornings
+
+Mitra: Okay, Saturday. I'll call Aunt Sarah on Saturday and we'll figure out the Thanksgiving stuff
+
+Mitra's Mom: Good. And you're coming, right? You're not going to tell me you have work
+
+Mitra: Mom—
+
+Mitra's Mom: I'm just asking
+
+Mitra: Yes I'm coming, obviously I'm coming
+
+Mitra's Mom: [laughs] Okay good. How's everything else, how's work?
+
+Mitra: It's fine, busy. I've got this roadmap thing I need to finish by Friday so this week is kind of—
+
+Mitra's Mom: What's a roadmap
+
+Mitra: It's like, a plan. For what the team is building, I have to put it all together and send it to the product team
+
+Mitra's Mom: Okay, sounds stressful
+
+Mitra: It's fine, it's manageable. Okay Mom I'm back at the building, I should head up
+
+Mitra's Mom: Okay, go, go. Call Sarah on Saturday, don't forget
+
+Mitra: I won't forget, I'm putting it in my calendar right now
+
+Mitra's Mom: Good girl. I love you
+
+Mitra: Love you too, bye Mom
+
+Mitra's Mom: Bye bye
+
+[BACKGROUND: door buzzing open]
+
+[RECORDING END — 03:21 PM]

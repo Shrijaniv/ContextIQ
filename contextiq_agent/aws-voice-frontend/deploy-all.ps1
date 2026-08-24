@@ -1,0 +1,274 @@
+# Deploy Nova Sonic Bidi Voice Agent - Complete Deployment Script
+
+Write-Host "=== Nova Sonic Bidi Voice Agent Deployment ===" -ForegroundColor Cyan
+
+# Step 1: Verify AWS credentials
+Write-Host "`n[1/11] Verifying AWS credentials..." -ForegroundColor Yellow
+Write-Host "      (Checking AWS CLI configuration and validating access)" -ForegroundColor Gray
+
+# Check if AWS credentials are configured
+$callerIdentity = aws sts get-caller-identity 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "AWS credentials are not configured or have expired" -ForegroundColor Red
+    Write-Host "`nPlease configure AWS credentials using one of these methods:" -ForegroundColor Yellow
+    Write-Host "  1. Run: aws configure" -ForegroundColor Cyan
+    Write-Host "  2. Set environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY" -ForegroundColor Cyan
+    Write-Host "  3. Use AWS SSO: aws sso login --profile <profile-name>" -ForegroundColor Cyan
+    Write-Host "`nFor more info: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html" -ForegroundColor Gray
+    exit 1
+}
+
+# Display current AWS identity
+$accountId = ($callerIdentity | ConvertFrom-Json).Account
+$arn = ($callerIdentity | ConvertFrom-Json).Arn
+Write-Host "      Authenticated as: $arn" -ForegroundColor Green
+Write-Host "      AWS Account: $accountId" -ForegroundColor Green
+
+# Step 2: Check AWS CLI version
+Write-Host "`n[2/11] Checking AWS CLI version..." -ForegroundColor Yellow
+$awsVersion = aws --version 2>&1
+$versionMatch = $awsVersion -match 'aws-cli/(\d+)\.(\d+)\.(\d+)'
+if ($versionMatch) {
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    $patch = [int]$Matches[3]
+    Write-Host "      Current version: aws-cli/$major.$minor.$patch" -ForegroundColor Gray
+    
+    # Check if version is >= 2.31.13
+    $isVersionValid = ($major -gt 2) -or 
+                      ($major -eq 2 -and $minor -gt 31) -or 
+                      ($major -eq 2 -and $minor -eq 31 -and $patch -ge 13)
+    
+    if (-not $isVersionValid) {
+        Write-Host "      ❌ AWS CLI version 2.31.13 or later is required" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "      AgentCore support was added in AWS CLI v2.31.13 (January 2025)" -ForegroundColor Yellow
+        Write-Host "      Your current version: aws-cli/$major.$minor.$patch" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "      Please upgrade your AWS CLI:" -ForegroundColor Yellow
+        Write-Host "        https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html" -ForegroundColor Cyan
+        exit 1
+    }
+    Write-Host "      ✓ AWS CLI version is compatible" -ForegroundColor Green
+} else {
+    Write-Host "      ⚠ Could not parse AWS CLI version, continuing anyway..." -ForegroundColor Yellow
+}
+
+# Step 3: Check AgentCore availability in current region
+Write-Host "`n[3/11] Checking AgentCore availability in current region..." -ForegroundColor Yellow
+# Detect current region from AWS CLI configuration
+$currentRegion = aws configure get region
+if ([string]::IsNullOrEmpty($currentRegion)) {
+    Write-Host "      ❌ No AWS region configured" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "      Please configure your AWS region using:" -ForegroundColor Yellow
+    Write-Host "        aws configure set region <your-region>" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "      For supported regions, see:" -ForegroundColor Gray
+    Write-Host "      https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-regions.html" -ForegroundColor Gray
+    exit 1
+}
+Write-Host "      Target region: $currentRegion" -ForegroundColor Gray
+
+# Try to list AgentCore runtimes to verify service availability
+$agentCoreCheck = aws bedrock-agentcore-control list-agent-runtimes --region $currentRegion --max-results 1 2>&1
+if ($LASTEXITCODE -ne 0) {
+    $errorMessage = $agentCoreCheck | Out-String
+    Write-Host "      ❌ AgentCore is not available in region: $currentRegion" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "      Error details:" -ForegroundColor Gray
+    Write-Host "      $errorMessage" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "      For supported regions, see:" -ForegroundColor Gray
+    Write-Host "      https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-regions.html" -ForegroundColor Gray
+    exit 1
+}
+Write-Host "      ✓ AgentCore is available in $currentRegion" -ForegroundColor Green
+
+# Step 4: Update Dockerfile with current region
+Write-Host "`n[4/11] Updating Dockerfile with current region..." -ForegroundColor Yellow
+Write-Host "      (Setting AWS_REGION and AWS_DEFAULT_REGION to $currentRegion in agent/Dockerfile)" -ForegroundColor Gray
+
+$dockerfilePath = "agent/Dockerfile"
+if (Test-Path $dockerfilePath) {
+    $dockerfileContent = Get-Content $dockerfilePath -Raw
+    
+    # Replace both AWS_REGION and AWS_DEFAULT_REGION with current region
+    $dockerfileContent = $dockerfileContent -replace 'AWS_REGION=[\w-]+', "AWS_REGION=$currentRegion"
+    $dockerfileContent = $dockerfileContent -replace 'AWS_DEFAULT_REGION=[\w-]+', "AWS_DEFAULT_REGION=$currentRegion"
+    
+    # Write back to file
+    Set-Content -Path $dockerfilePath -Value $dockerfileContent -NoNewline
+    Write-Host "      ✓ Updated Dockerfile with region: $currentRegion" -ForegroundColor Green
+} else {
+    Write-Host "      ⚠ Dockerfile not found at $dockerfilePath, skipping region update..." -ForegroundColor Yellow
+}
+
+# Step 5: Install CDK dependencies
+Write-Host "`n[5/11] Installing CDK dependencies..." -ForegroundColor Yellow
+Write-Host "      (Installing AWS CDK libraries and TypeScript packages for infrastructure code)" -ForegroundColor Gray
+if (-not (Test-Path "cdk/node_modules")) {
+    Push-Location cdk
+    npm install
+    Pop-Location
+} else {
+    Write-Host "      CDK dependencies already installed, skipping..." -ForegroundColor Gray
+}
+
+# Step 6: Install frontend dependencies
+Write-Host "`n[6/11] Installing frontend dependencies..." -ForegroundColor Yellow
+Write-Host "      (Installing React, Vite, Cognito SDK, and UI component libraries)" -ForegroundColor Gray
+Push-Location frontend
+# Commented out to save time during development - uncomment for clean builds
+# if (Test-Path "node_modules") {
+#     Write-Host "Removing existing node_modules..." -ForegroundColor Gray
+#     Remove-Item -Recurse -Force "node_modules"
+# }
+npm install
+Pop-Location
+
+# Step 6: Create placeholder dist BEFORE any CDK commands
+# (CDK synthesizes all stacks even when deploying one, so frontend/dist must exist)
+Write-Host "`n[7/11] Creating placeholder frontend build..." -ForegroundColor Yellow
+Write-Host "      (Generating temporary HTML file - required for CDK synthesis)" -ForegroundColor Gray
+if (-not (Test-Path "frontend/dist")) {
+    New-Item -ItemType Directory -Path "frontend/dist" -Force | Out-Null
+    echo "<!DOCTYPE html><html><body><h1>Building...</h1></body></html>" > frontend/dist/index.html
+} else {
+    Write-Host "      Placeholder already exists, skipping..." -ForegroundColor Gray
+}
+
+# Step 7: Bootstrap CDK (if needed)
+Write-Host "`n[8/11] Bootstrapping CDK environment..." -ForegroundColor Yellow
+Write-Host "      (Setting up CDK deployment resources in your AWS account/region)" -ForegroundColor Gray
+Push-Location cdk
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+npx cdk bootstrap --output "cdk.out.$timestamp" --no-cli-pager
+Pop-Location
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "CDK bootstrap failed" -ForegroundColor Red
+    exit 1
+}
+
+# Step 8: Deploy infrastructure stack
+Write-Host "`n[9/11] Deploying infrastructure stack..." -ForegroundColor Yellow
+Write-Host "      (Creating ECR repository, CodeBuild project, S3 bucket, and IAM roles)" -ForegroundColor Gray
+Write-Host "      Note: Nova Sonic model calls use BEDROCK_REGION=us-east-1 by default." -ForegroundColor Gray
+Write-Host "      To change, update BEDROCK_REGION in cdk/lib/runtime-stack.ts before deploying." -ForegroundColor Gray
+Write-Host "      See supported regions: https://docs.aws.amazon.com/bedrock/latest/userguide/models-regions.html" -ForegroundColor Gray
+Push-Location cdk
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+npx cdk deploy AgentCoreNovaSonicBidiInfra-$currentRegion --output "cdk.out.$timestamp" --no-cli-pager --require-approval never
+Pop-Location
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Infrastructure deployment failed" -ForegroundColor Red
+    exit 1
+}
+
+# Step 9: Deploy auth stack
+Write-Host "`n[10/11] Deploying authentication stack..." -ForegroundColor Yellow
+Write-Host "      (Creating Cognito User Pool with email verification and password policies)" -ForegroundColor Gray
+Push-Location cdk
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+npx cdk deploy AgentCoreNovaSonicBidiAuth-$currentRegion --output "cdk.out.$timestamp" --no-cli-pager --require-approval never
+Pop-Location
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Auth deployment failed" -ForegroundColor Red
+    exit 1
+}
+
+# Step 10: Deploy backend stack (triggers build and waits via Lambda)
+Write-Host "`n[11/11] Deploying AgentCore backend stack..." -ForegroundColor Yellow
+Write-Host "      (Uploading agent code, building ARM64 Docker image, creating AgentCore runtime with built-in Cognito auth)" -ForegroundColor Gray
+Write-Host "      Note: CodeBuild will compile the container image - this takes 5-10 minutes" -ForegroundColor DarkGray
+Write-Host "      The deployment will pause while waiting for the build to complete..." -ForegroundColor DarkGray
+Push-Location cdk
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+$deployOutput = npx cdk deploy AgentCoreNovaSonicBidiRuntime-$currentRegion --output "cdk.out.$timestamp" --no-cli-pager --require-approval never 2>&1 | Tee-Object -Variable cdkOutput
+Pop-Location
+
+if ($LASTEXITCODE -ne 0) {
+    # Check if the error is about unrecognized resource type
+    if ($cdkOutput -match "Unrecognized resource types.*BedrockAgentCore") {
+        $currentRegion = if ($env:AWS_DEFAULT_REGION) { $env:AWS_DEFAULT_REGION } elseif ($env:AWS_REGION) { $env:AWS_REGION } else { "unknown" }
+        Write-Host "`n❌ DEPLOYMENT FAILED: AgentCore is not available in region '$currentRegion'" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Please verify AgentCore availability in your target region:" -ForegroundColor Yellow
+        Write-Host "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-regions.html" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "To deploy to a supported region, set the AWS_DEFAULT_REGION environment variable:" -ForegroundColor Yellow
+        Write-Host '  $env:AWS_DEFAULT_REGION = "your-supported-region"' -ForegroundColor Gray
+        Write-Host '  $env:AWS_REGION = "your-supported-region"' -ForegroundColor Gray
+        Write-Host "  .\deploy-all.ps1" -ForegroundColor Gray
+        exit 1
+    }
+    # Re-throw other errors
+    Write-Host "Backend deployment failed" -ForegroundColor Red
+    exit 1
+}
+
+# Build and deploy frontend (after backend is complete)
+Write-Host "`nBuilding and deploying frontend..." -ForegroundColor Yellow
+Write-Host "      (Retrieving AgentCore Runtime ID and Cognito config, building React app, deploying to S3 + CloudFront)" -ForegroundColor Gray
+$agentRuntimeArn = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiRuntime-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='AgentRuntimeArn'].OutputValue" --output text --no-cli-pager
+$region = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiRuntime-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='Region'].OutputValue" --output text --no-cli-pager
+$userPoolId = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiAuth-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text --no-cli-pager
+$userPoolClientId = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiAuth-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" --output text --no-cli-pager
+$identityPoolId = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiAuth-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='IdentityPoolId'].OutputValue" --output text --no-cli-pager
+
+if ([string]::IsNullOrEmpty($agentRuntimeArn)) {
+    Write-Host "Failed to get Agent Runtime ARN from stack outputs" -ForegroundColor Red
+    exit 1
+}
+
+if ([string]::IsNullOrEmpty($region)) {
+    Write-Host "Failed to get Region from stack outputs" -ForegroundColor Red
+    exit 1
+}
+
+if ([string]::IsNullOrEmpty($userPoolId) -or [string]::IsNullOrEmpty($userPoolClientId) -or [string]::IsNullOrEmpty($identityPoolId)) {
+    Write-Host "Failed to get Cognito config from stack outputs" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Agent Runtime ARN: $agentRuntimeArn" -ForegroundColor Green
+Write-Host "Region: $region" -ForegroundColor Green
+Write-Host "User Pool ID: $userPoolId" -ForegroundColor Green
+Write-Host "User Pool Client ID: $userPoolClientId" -ForegroundColor Green
+Write-Host "Identity Pool ID: $identityPoolId" -ForegroundColor Green
+
+# Build frontend with AgentCore Runtime ARN and Cognito config
+& .\scripts\build-frontend.ps1 -UserPoolId $userPoolId -UserPoolClientId $userPoolClientId -IdentityPoolId $identityPoolId -AgentRuntimeArn $agentRuntimeArn -Region $region
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Frontend build failed" -ForegroundColor Red
+    exit 1
+}
+
+# Deploy frontend stack - use a fresh timestamp to force re-synthesis with the new dist contents
+# (CDK caches asset hashes per output directory, so a new output dir ensures it picks up the latest build)
+Push-Location cdk
+$timestamp = Get-Date -Format "yyyyMMddHHmmss"
+npx cdk deploy AgentCoreNovaSonicBidiFrontend-$currentRegion --output "cdk.out.$timestamp" --no-cli-pager --require-approval never
+Pop-Location
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Frontend deployment failed" -ForegroundColor Red
+    exit 1
+}
+
+# Get CloudFront URL
+$websiteUrl = aws cloudformation describe-stacks --stack-name AgentCoreNovaSonicBidiFrontend-$currentRegion --query "Stacks[0].Outputs[?OutputKey=='WebsiteUrl'].OutputValue" --output text --no-cli-pager
+
+Write-Host "`n=== Deployment Complete ===" -ForegroundColor Green
+Write-Host "Website URL: $websiteUrl" -ForegroundColor Cyan
+Write-Host "Agent Runtime ARN: $agentRuntimeArn" -ForegroundColor Cyan
+Write-Host "Region: $region" -ForegroundColor Cyan
+Write-Host "User Pool ID: $userPoolId" -ForegroundColor Cyan
+Write-Host "User Pool Client ID: $userPoolClientId" -ForegroundColor Cyan
+Write-Host "Identity Pool ID: $identityPoolId" -ForegroundColor Cyan
+Write-Host "`nNote: Users must sign up and log in to use the application" -ForegroundColor Yellow

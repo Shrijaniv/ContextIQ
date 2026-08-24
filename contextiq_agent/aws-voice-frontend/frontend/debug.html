@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent Debug Console</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 1px;
+            background: #000;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background: #252526;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #3e3e42;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid #3e3e42;
+            background: #2d2d30;
+            color: #cccccc;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: #3e3e42;
+            border-color: #007acc;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        button.primary {
+            background: #0e639c;
+            border-color: #007acc;
+        }
+        button.primary:hover:not(:disabled) {
+            background: #1177bb;
+        }
+        button.danger {
+            background: #c72e0f;
+            border-color: #d13212;
+        }
+        button.danger:hover:not(:disabled) {
+            background: #d13212;
+        }
+        .sidebar {
+            background: #252526;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .main-content {
+            background: #1e1e1e;
+            overflow-y: auto;
+        }
+        .metrics-panel {
+            background: #252526;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+        .config-input {
+            width: 100%;
+            padding: 8px;
+            background: #3c3c3c;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            border-radius: 3px;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-badge.disconnected {
+            background: #5a1d1d;
+            color: #f48771;
+        }
+        .status-badge.connected {
+            background: #1a3d1a;
+            color: #89d185;
+        }
+        .status-badge.recording {
+            background: #4d3319;
+            color: #f9ba7f;
+        }
+        .status-badge.speaking {
+            background: #1a2d4d;
+            color: #75beff;
+        }
+        .event-log {
+            background: #1e1e1e;
+            padding: 10px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        .event-item {
+            padding: 8px;
+            margin: 2px 0;
+            border-left: 3px solid transparent;
+            background: #252526;
+            border-radius: 2px;
+        }
+        .event-item:hover {
+            background: #2d2d30;
+        }
+        .event-item.info { border-left-color: #007acc; }
+        .event-item.success { border-left-color: #89d185; }
+        .event-item.warning { border-left-color: #f9ba7f; }
+        .event-item.error { border-left-color: #f48771; }
+        .event-time {
+            color: #858585;
+            margin-right: 10px;
+        }
+        .event-type {
+            color: #4ec9b0;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .event-data {
+            color: #ce9178;
+            margin-left: 20px;
+            display: block;
+            margin-top: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .metric-card {
+            background: #2d2d30;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border: 1px solid #3e3e42;
+        }
+        .metric-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #cccccc;
+        }
+        .metric-value.large {
+            font-size: 28px;
+        }
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .controls-grid button {
+            width: 100%;
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 12px;
+        }
+        .filter-btn.active {
+            background: #007acc;
+            border-color: #007acc;
+        }
+        .transcript-item {
+            background: #2d2d30;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            border-left: 3px solid #007acc;
+        }
+        .transcript-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .transcript-text {
+            color: #cccccc;
+            line-height: 1.5;
+        }
+        .info-box {
+            background: #2d2d30;
+            border: 1px solid #007acc;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 11px;
+        }
+        .info-box-title {
+            color: #4ec9b0;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+        }
+        .info-box-content {
+            color: #d4d4d4;
+            line-height: 1.8;
+        }
+        .info-box-label {
+            color: #4ec9b0;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Voice Agent Debug Console</h1>
+            <div class="header-controls">
+                <button onclick="exportLogs()">📋 Export Logs</button>
+                <button onclick="clearLogs()">🗑️ Clear</button>
+                <button onclick="toggleAutoScroll()" id="autoScrollBtn">📜 Auto-scroll: ON</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="section">
+                <div class="section-title">🔗 WebSocket Connection (Local Dev)</div>
+                
+                <!-- Step 1: WebSocket URL -->
+                <div style="background: #2d2d30; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #569cd6;">
+                    <div style="font-size: 11px; color: #569cd6; font-weight: 600; margin-bottom: 5px;">STEP 1: WebSocket URL</div>
+                    <div style="font-size: 10px; color: #888; margin-bottom: 8px;">
+                        This debug console connects directly to a local agent.<br>
+                        For production, use the deployed React frontend.
+                    </div>
+                    <input type="text" id="wsUrl" class="config-input" value="ws://localhost:8080/ws" placeholder="WebSocket URL" style="margin-bottom: 0;">
+                </div>
+                
+                <!-- Step 2: Connect -->
+                <div style="background: #2d2d30; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #dcdcaa;">
+                    <div style="font-size: 11px; color: #dcdcaa; font-weight: 600; margin-bottom: 5px;">STEP 2: Establish Connection</div>
+                    <div style="font-size: 10px; color: #888; margin-bottom: 8px;">
+                        Status: <span id="statusBadge" class="status-badge disconnected">Disconnected</span>
+                    </div>
+                    <div class="controls-grid">
+                        <button id="connectBtn" class="primary" onclick="connect()">▶️ Connect</button>
+                        <button id="disconnectBtn" class="danger" onclick="disconnect()" disabled>⏹️ Disconnect</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div style="background: #2d2d30; padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #c586c0;">
+                    <div style="font-size: 11px; color: #c586c0; font-weight: 600; margin-bottom: 5px;">STEP 3: Start Speaking</div>
+                    <div style="font-size: 10px; color: #888; margin-bottom: 8px;">
+                        Click to speak, your voice will be sent to Nova Sonic.<br>
+                        Agent responses will play automatically.
+                    </div>
+                    <div class="controls-grid">
+                        <button id="recordBtn" onclick="startRecording()" disabled>🎤 Click to Speak</button>
+                        <button id="stopBtn" class="danger" onclick="stopRecording()" disabled>⏹️ Stop</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Architecture Explanation -->
+            <div class="section">
+                <div class="section-title">💡 How It Works</div>
+                <div style="background: #2d2d30; padding: 10px; border-radius: 4px; font-size: 10px; color: #888; line-height: 1.6;">
+                    <div style="color: #4ec9b0; font-weight: 600; margin-bottom: 5px;">Debug Console (This Page)</div>
+                    <div style="margin-bottom: 8px;">
+                        Connects directly to a local agent via <code style="color: #ce9178;">ws://localhost:8080/ws</code>.<br>
+                        No authentication needed. For local development and debugging only.
+                    </div>
+                    
+                    <div style="color: #569cd6; font-weight: 600; margin-bottom: 5px;">Production (React Frontend)</div>
+                    <div style="margin-bottom: 8px;">
+                        1. Cognito Identity Pool provides AWS credentials<br>
+                        2. <code style="color: #ce9178;">@aws-sdk/signature-v4</code> generates SigV4 presigned URL<br>
+                        3. Browser connects via <code style="color: #ce9178;">wss://</code> with auth in query params
+                    </div>
+                    
+                    <div style="color: #dcdcaa; font-weight: 600; margin-bottom: 5px;">Usage</div>
+                    <div>
+                        1. Start agent: <code style="color: #ce9178;">cd agent && python strands_agent.py</code><br>
+                        2. Open this page in browser<br>
+                        3. Click Connect, then Click to Speak
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Transcripts</div>
+                <div id="transcripts" style="max-height: 300px; overflow-y: auto;">
+                    <em style="color: #666;">No transcripts yet...</em>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="filter-buttons" style="padding: 10px; background: #252526; border-bottom: 1px solid #3e3e42;">
+                <span style="color: #888; font-size: 11px; margin-right: 10px; align-self: center;">FILTERS:</span>
+                <button class="filter-btn active" data-filter="SYSTEM" onclick="toggleFilter('SYSTEM')">System</button>
+                <button class="filter-btn active" data-filter="WEBSOCKET" onclick="toggleFilter('WEBSOCKET')">WebSocket</button>
+                <button class="filter-btn active" data-filter="AUDIO" onclick="toggleFilter('AUDIO')">Audio</button>
+                <button class="filter-btn active" data-filter="TRANSCRIPT" onclick="toggleFilter('TRANSCRIPT')">Transcript</button>
+                <button class="filter-btn active" data-filter="SPEAKING" onclick="toggleFilter('SPEAKING')">Speaking</button>
+                <button class="filter-btn active" data-filter="USAGE" onclick="toggleFilter('USAGE')">Usage</button>
+                <button class="filter-btn active" data-filter="TOOL" onclick="toggleFilter('TOOL')">Tools</button>
+                <button class="filter-btn active" data-filter="ERROR" onclick="toggleFilter('ERROR')">Errors</button>
+                <button style="margin-left: auto; padding: 4px 10px; font-size: 11px;" onclick="toggleAllFilters()">Toggle All</button>
+            </div>
+            <div class="event-log" id="eventLog">
+                <div class="event-item info">
+                    <span class="event-time">--:--:--.---</span>
+                    <span class="event-type">SYSTEM</span>
+                    <span>Debug console initialized. Connect to start logging.</span>
+                </div>
+            </div>
+        </div>
+        <div class="metrics-panel">
+            <div class="section">
+                <div class="section-title">Network Stats</div>
+                <div class="metric-card">
+                    <div class="metric-label">Messages Sent</div>
+                    <div class="metric-value" id="msgSent">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Messages Received</div>
+                    <div class="metric-value" id="msgReceived">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Data Sent</div>
+                    <div class="metric-value" id="dataSent">0 KB</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Data Received</div>
+                    <div class="metric-value" id="dataReceived">0 KB</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Audio Stats</div>
+                <div class="metric-card">
+                    <div class="metric-label">Queue Size</div>
+                    <div class="metric-value large" id="queueSize">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Sample Rate</div>
+                    <div class="metric-value" id="sampleRate">--</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">LLM Stats</div>
+                <div class="metric-card">
+                    <div class="metric-label">Input Tokens</div>
+                    <div class="metric-value" id="inputTokens">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Output Tokens</div>
+                    <div class="metric-value" id="outputTokens">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Tokens</div>
+                    <div class="metric-value large" id="totalTokens">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let ws = null;
+        let audioContext = null;
+        let audioQueue = [];
+        let isPlaying = false;
+        let autoScroll = true;
+        let activeFilters = new Set(['SYSTEM', 'WEBSOCKET', 'AUDIO', 'TRANSCRIPT', 'SPEAKING', 'USAGE', 'TOOL', 'ERROR']);
+        
+        // Metrics
+        let metrics = {
+            messagesSent: 0,
+            messagesReceived: 0,
+            bytesSent: 0,
+            bytesReceived: 0,
+            sampleRate: null,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0
+        };
+
+        // Event logging
+        function logEvent(type, category, message, data = null) {
+            const time = new Date().toISOString().split('T')[1];
+            const eventLog = document.getElementById('eventLog');
+            
+            const eventItem = document.createElement('div');
+            eventItem.className = `event-item ${category}`;
+            eventItem.dataset.type = type;
+            
+            // Use safe DOM methods instead of innerHTML to prevent XSS
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'event-time';
+            timeSpan.textContent = time;
+            
+            const typeSpan = document.createElement('span');
+            typeSpan.className = 'event-type';
+            typeSpan.textContent = type;
+            
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            
+            eventItem.appendChild(timeSpan);
+            eventItem.appendChild(typeSpan);
+            eventItem.appendChild(messageSpan);
+            
+            if (data) {
+                const dataSpan = document.createElement('span');
+                dataSpan.className = 'event-data';
+                dataSpan.textContent = JSON.stringify(data, null, 2);
+                eventItem.appendChild(dataSpan);
+            }
+            
+            eventLog.appendChild(eventItem);
+            
+            if (autoScroll) {
+                eventLog.scrollTop = eventLog.scrollHeight;
+            }
+            
+            applyFilter();
+        }
+
+        // Update metrics display
+        function updateMetrics() {
+            document.getElementById('msgSent').textContent = metrics.messagesSent;
+            document.getElementById('msgReceived').textContent = metrics.messagesReceived;
+            document.getElementById('dataSent').textContent = (metrics.bytesSent / 1024).toFixed(2) + ' KB';
+            document.getElementById('dataReceived').textContent = (metrics.bytesReceived / 1024).toFixed(2) + ' KB';
+            document.getElementById('queueSize').textContent = audioQueue.length;
+            document.getElementById('sampleRate').textContent = metrics.sampleRate ? `${metrics.sampleRate} Hz` : '--';
+            document.getElementById('inputTokens').textContent = metrics.inputTokens;
+            document.getElementById('outputTokens').textContent = metrics.outputTokens;
+            document.getElementById('totalTokens').textContent = metrics.totalTokens;
+        }
+
+        // Connection
+        async function connect() {
+            const wsUrl = document.getElementById('wsUrl').value;
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                logEvent('WEBSOCKET', 'info', `Connecting to ${wsUrl}...`);
+                
+                ws.onopen = () => {
+                    updateStatus('connected');
+                    logEvent('WEBSOCKET', 'success', 'WebSocket connection established');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('recordBtn').disabled = false;
+                };
+
+                ws.onmessage = async (event) => {
+                    metrics.messagesReceived++;
+                    metrics.bytesReceived += event.data.length;
+                    updateMetrics();
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleMessage(data);
+                    } catch (error) {
+                        logEvent('PARSE_ERROR', 'error', 'Failed to parse message', { error: error.message });
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    logEvent('WEBSOCKET', 'error', 'WebSocket error', error);
+                };
+                
+                ws.onclose = () => {
+                    updateStatus('disconnected');
+                    logEvent('WEBSOCKET', 'warning', 'WebSocket connection closed');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    document.getElementById('recordBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = true;
+                };
+            } catch (error) {
+                logEvent('WEBSOCKET', 'error', 'Failed to connect', { error: error.message });
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            audioQueue = [];
+            isPlaying = false;
+            updateMetrics();
+        }
+
+        // Message handling
+        function handleMessage(data) {
+            const type = data.type || 'UNKNOWN';
+            
+            switch (type) {
+                case 'bidi_audio_stream':
+                    logEvent('AUDIO_STREAM', 'info', `Audio chunk received (${data.format}, ${data.sample_rate}Hz)`);
+                    queueAudio(data.audio, data.format, data.sample_rate);
+                    break;
+                    
+                case 'bidi_transcript_stream':
+                    const role = data.role === 'assistant' ? 'Agent' : 'User';
+                    logEvent('TRANSCRIPT', 'success', `${role}: ${data.text}`, { is_final: data.is_final });
+                    if (data.is_final) {
+                        addTranscript(role, data.text);
+                    }
+                    break;
+                    
+                case 'bidi_interruption':
+                    logEvent('INTERRUPTION', 'warning', `Interrupted: ${data.reason}`);
+                    audioQueue = [];
+                    isPlaying = false;
+                    updateMetrics();
+                    break;
+
+                case 'bidi_error':
+                    logEvent('ERROR', 'error', data.message, data);
+                    break;
+                    
+                case 'tool_use_stream':
+                    logEvent('TOOL_USE', 'info', `Tool: ${data.current_tool_use?.name}`, data.current_tool_use);
+                    break;
+                    
+                case 'bidi_connection_start':
+                case 'bidi_response_start':
+                case 'bidi_usage':
+                    // Track token usage - tokens are at top level of data object
+                    if (type === 'bidi_usage') {
+                        const inputTokens = data.inputTokens || 0;
+                        const outputTokens = data.outputTokens || 0;
+                        
+                        metrics.inputTokens += inputTokens;
+                        metrics.outputTokens += outputTokens;
+                        metrics.totalTokens = metrics.inputTokens + metrics.outputTokens;
+                        updateMetrics();
+                        
+                        // Sanitize values to prevent format string injection
+                        const safeInputTokens = Number(inputTokens) || 0;
+                        const safeOutputTokens = Number(outputTokens) || 0;
+                        const safeTotalTokens = Number(data.totalTokens) || 0;
+                        logEvent('USAGE', 'info', `Tokens: +${safeInputTokens} in, +${safeOutputTokens} out (total: ${safeTotalTokens})`, data);
+                    }
+                    // Silent events, just log to console
+                    console.log(type, data);
+                    break;
+                    
+                default:
+                    logEvent(type, 'info', 'Event received', data);
+            }
+        }
+
+        // Recording
+        let mediaRecorder = null;
+        let recordingContext = null;
+        let workletNode = null;
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                recordingContext = new AudioContext({ sampleRate: 16000 });
+                const source = recordingContext.createMediaStreamSource(stream);
+                const processor = recordingContext.createScriptProcessor(4096, 1, 1);
+                
+                source.connect(processor);
+                processor.connect(recordingContext.destination);
+                
+                processor.onaudioprocess = (e) => {
+                    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                    
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    const pcmData = new Int16Array(inputData.length);
+                    
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    
+                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
+                    
+                    const message = JSON.stringify({
+                        type: 'bidi_audio_input',
+                        audio: base64Audio,
+                        format: 'pcm',
+                        sample_rate: 16000,
+                        channels: 1
+                    });
+                    
+                    ws.send(message);
+                    metrics.messagesSent++;
+                    metrics.bytesSent += message.length;
+                    updateMetrics();
+                };
+
+                mediaRecorder = { 
+                    stop: () => {
+                        processor.disconnect();
+                        source.disconnect();
+                        recordingContext.close();
+                        stream.getTracks().forEach(track => track.stop());
+                    },
+                    stream
+                };
+                
+                updateStatus('recording');
+                logEvent('SPEAKING', 'info', 'Speaking started (PCM 16kHz mono)');
+                document.getElementById('recordBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            } catch (error) {
+                logEvent('MIC_ERROR', 'error', 'Microphone access failed', { error: error.message });
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                mediaRecorder = null;
+            }
+            updateStatus('connected');
+            logEvent('SPEAKING', 'info', 'Speaking stopped');
+            document.getElementById('recordBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        // Audio playback
+        async function queueAudio(base64Audio, format, sampleRate) {
+            try {
+                if (!audioContext || audioContext.state === 'closed') {
+                    audioContext = new AudioContext({ sampleRate });
+                    metrics.sampleRate = sampleRate;
+                    updateMetrics();
+                }
+                
+                const binaryString = atob(base64Audio);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                let audioBuffer;
+                if (format === 'pcm') {
+                    const pcmData = new Int16Array(bytes.buffer);
+                    const floatData = new Float32Array(pcmData.length);
+                    for (let i = 0; i < pcmData.length; i++) {
+                        floatData[i] = pcmData[i] / (pcmData[i] < 0 ? 0x8000 : 0x7FFF);
+                    }
+                    audioBuffer = audioContext.createBuffer(1, floatData.length, sampleRate);
+                    audioBuffer.getChannelData(0).set(floatData);
+                } else {
+                    const audioBlob = new Blob([bytes], { type: `audio/${format}` });
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                }
+                
+                audioQueue.push(audioBuffer);
+                updateMetrics();
+                
+                if (!isPlaying) {
+                    playNextAudio();
+                }
+            } catch (error) {
+                logEvent('AUDIO_ERROR', 'error', 'Failed to queue audio', { error: error.message });
+            }
+        }
+
+        function playNextAudio() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                updateMetrics();
+                return;
+            }
+            
+            isPlaying = true;
+            updateStatus('speaking');
+            const audioBuffer = audioQueue.shift();
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+            
+            source.onended = () => {
+                playNextAudio();
+            };
+            
+            source.start();
+            updateMetrics();
+        }
+
+        // UI helpers
+        function updateStatus(status) {
+            const badge = document.getElementById('statusBadge');
+            badge.className = `status-badge ${status}`;
+            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function addTranscript(role, text) {
+            const transcripts = document.getElementById('transcripts');
+            if (transcripts.querySelector('em')) {
+                // Clear placeholder text safely
+                while (transcripts.firstChild) {
+                    transcripts.removeChild(transcripts.firstChild);
+                }
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'transcript-item';
+            
+            // Use safe DOM methods instead of innerHTML to prevent XSS
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'transcript-label';
+            labelDiv.textContent = role;
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'transcript-text';
+            textDiv.textContent = text;
+            
+            item.appendChild(labelDiv);
+            item.appendChild(textDiv);
+            transcripts.appendChild(item);
+            transcripts.scrollTop = transcripts.scrollHeight;
+        }
+
+        // Filter events
+        function toggleFilter(filter) {
+            const btn = document.querySelector(`[data-filter="${filter}"]`);
+            
+            if (activeFilters.has(filter)) {
+                activeFilters.delete(filter);
+                btn.classList.remove('active');
+            } else {
+                activeFilters.add(filter);
+                btn.classList.add('active');
+            }
+            
+            applyFilter();
+        }
+
+        function toggleAllFilters() {
+            const allFilters = ['SYSTEM', 'WEBSOCKET', 'AUDIO', 'TRANSCRIPT', 'SPEAKING', 'USAGE', 'TOOL', 'ERROR'];
+            
+            if (activeFilters.size === allFilters.length) {
+                // All are on, turn all off
+                activeFilters.clear();
+                document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            } else {
+                // Some are off, turn all on
+                activeFilters = new Set(allFilters);
+                document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+                    btn.classList.add('active');
+                });
+            }
+            
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const events = document.querySelectorAll('.event-item');
+            events.forEach(event => {
+                const eventType = event.dataset.type;
+                let shouldShow = false;
+                
+                // Check if event type matches any active filter
+                for (const filter of activeFilters) {
+                    if (eventType && eventType.includes(filter)) {
+                        shouldShow = true;
+                        break;
+                    }
+                }
+                
+                event.style.display = shouldShow ? 'block' : 'none';
+            });
+        }
+
+        // Utility functions
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            document.getElementById('autoScrollBtn').textContent = `📜 Auto-scroll: ${autoScroll ? 'ON' : 'OFF'}`;
+        }
+
+        function clearLogs() {
+            const eventLog = document.getElementById('eventLog');
+            // Clear logs safely without innerHTML
+            while (eventLog.firstChild) {
+                eventLog.removeChild(eventLog.firstChild);
+            }
+            logEvent('SYSTEM', 'info', 'Logs cleared');
+        }
+
+        function exportLogs() {
+            const events = document.querySelectorAll('.event-item');
+            let logText = '=== Voice Agent Debug Log ===\n';
+            logText += `Exported: ${new Date().toISOString()}\n`;
+            logText += `\nMetrics:\n`;
+            logText += `- Messages Sent: ${metrics.messagesSent}\n`;
+            logText += `- Messages Received: ${metrics.messagesReceived}\n`;
+            logText += `- Data Sent: ${(metrics.bytesSent / 1024).toFixed(2)} KB\n`;
+            logText += `- Data Received: ${(metrics.bytesReceived / 1024).toFixed(2)} KB\n`;
+            logText += `\nEvents:\n\n`;
+            
+            events.forEach(event => {
+                logText += event.textContent.trim() + '\n\n';
+            });
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voice-agent-debug-${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            logEvent('EXPORT', 'success', 'Logs exported successfully');
+        }
+
+        // Initialize
+        logEvent('SYSTEM', 'info', 'Debug console ready.');
+        logEvent('SYSTEM', 'info', '💡 Start your local agent (python strands_agent.py), then click Connect.');
+    </script>
+</body>
+</html>
