@@ -1,4 +1,4 @@
-# ContextIQ — Ambient Context Voice Assistant
+# ContextIQ: Ambient Context Voice Assistant
 
 **Amazon Developer Hackathon 2026** · Team: Shrijani, Mitravinda, Robert, Jun Hyung Lee
 
